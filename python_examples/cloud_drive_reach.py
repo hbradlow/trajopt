@@ -3,7 +3,7 @@ import trajoptpy
 import openravepy as rave
 import numpy as np
 import json
-from point_clouds import convex_soup
+from trajoptpy import convex_soup
 import atexit
 
 def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
@@ -64,7 +64,7 @@ robot.SetDOFValues([tlj.GetLimits()[-1]], [tlj.GetDOFIndex()])
 print "processing point cloud"
 
 if env.GetKinBody("convexsoup") is None:        
-    cloud = cloudprocpy.readPCDXYZ("/home/joschu/Proj/trajoptrave/bigdata/laser_cloud.pcd")
+    cloud = cloudprocpy.readPCDXYZ("../bigdata/laser_cloud.pcd")
     cloud = cloudprocpy.boxFilter(cloud, -1,5,-5,5,.1,2)
     aabb = robot.GetLink("base_link").ComputeAABB()
     (xmin,ymin,zmin) = aabb.pos() - aabb.extents()
