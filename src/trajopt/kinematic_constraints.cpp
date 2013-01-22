@@ -174,6 +174,45 @@ void CartPoseConstraint::Plot(const DblVec& x, OR::EnvironmentBase& env, std::ve
   handles.push_back(env.drawarrow(cur.trans, target.trans, .01, OR::Vector(1,0,1,1)));
 }
 
+//////////////////////////////// alex ////////////////////////////////
+
+struct CartPosErrCalculator : public VectorOfVector {
+  OR::Vector pos_inv_;
+  RobotAndDOFPtr manip_;
+  OR::KinBody::LinkPtr link_;
+  CartPosErrCalculator(const OR::Vector& pos, RobotAndDOFPtr manip, OR::KinBody::LinkPtr link) :
+  pos_inv_(-pos),
+  manip_(manip),
+  link_(link)
+  {}
+  VectorXd operator()(const VectorXd& dof_vals) const {
+    manip_->SetDOFValues(toDblVec(dof_vals));
+    OR::Vector newpos = link_->GetTransform().trans;
+    OR::Vector pos_err = pos_inv_ + newpos;
+    VectorXd err = toVector3d(pos_err);
+    return err;
+  }
+};
+
+CartPosConstraint::CartPosConstraint(const VarVector& vars, const OR::Vector& pos,
+    RobotAndDOFPtr manip, KinBody::LinkPtr link, const BoolVec& enabled) :
+    ConstraintFromNumDiff(VectorOfVectorPtr(new CartPosErrCalculator(pos, manip, link)),
+        vars, EQ, "CartPos", enabled)
+{
+}
+
+void CartPosConstraint::Plot(const DblVec& x, OR::EnvironmentBase& env, std::vector<OR::GraphHandlePtr>& handles) {
+	CartPosErrCalculator* calc = static_cast<CartPosErrCalculator*>(f_.get());
+  DblVec dof_vals = getDblVec(x, vars_);
+  calc->manip_->SetDOFValues(dof_vals);
+  OR::Vector target = - calc->pos_inv_;
+  OR::Vector cur = calc->link_->GetTransform().trans;
+  //handles.push_back(env.drawbox(cur, OR::Vector(0.1,0.1,0.1)));
+  //handles.push_back(env.drawbox(target, OR::Vector(0.1,0.1,0.1)));
+  handles.push_back(env.drawarrow(cur, target, .01, OR::Vector(1,0,1,1)));
+}
+
+//////////////////////////////// alex ////////////////////////////////
 
 struct CartPositionErrCalculator {
   Vector3d pt_world_;

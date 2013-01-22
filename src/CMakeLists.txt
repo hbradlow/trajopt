@@ -26,7 +26,8 @@ if(BUILD_SANDBOX)
 	add_subdirectory(sandbox)
 endif()
 add_subdirectory(osgviewer)
-add_subdirectory(humanoids)
+#alex
+#add_subdirectory(humanoids)
 
 if(NOT APPLE)
 endif()

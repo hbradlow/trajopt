@@ -33,6 +33,7 @@ void RegisterMakers() {
 
   CntInfo::RegisterMaker("joint", &JointConstraintInfo::create);
   CntInfo::RegisterMaker("pose", &PoseCntInfo::create);
+  CntInfo::RegisterMaker("pos", &PosCntInfo::create);
 
   gRegisteredMakers = true;
 }
@@ -95,7 +96,26 @@ void BasicInfo::fromJson(const Json::Value& v) {
   childFromJson(v, n_steps, "n_steps");
   childFromJson(v, manip, "manip");
   childFromJson(v, robot, "robot", string(""));
-  childFromJson(v, dofs_fixed, "dofs_fixed", IntVec());
+
+	const Value& vdofs_fixed = v["dofs_fixed"];
+	for (int i=0; i < vdofs_fixed.size(); ++i) {
+		DblVec row;
+		fromJsonArray(vdofs_fixed[i], row);
+  	if (row.size() == 1) {
+	  	row.push_back(0);
+			row.push_back(n_steps);
+	  } else if (row.size() == 3) {
+	  	if (row[1]<0 || row[1]>n_steps || row[2]<0 || row[2]>n_steps)
+				throw MY_EXCEPTION("step0 and step1 should be between 0 and n_steps (inclusive)");
+			if (row[2] <= row[1])
+				throw MY_EXCEPTION("step1 should be strictly greater than step0");
+	  } else {
+	  	throw MY_EXCEPTION("number of cols for dofs_fixed should be 1 or 3");
+	  }
+    if (row[0]<0) // || row[0]>=gPCI->rad->GetDOF())
+			throw MY_EXCEPTION("dof_ind should be between 0 and n_dof (exclusive)");
+		dofs_fixed.push_back(row);
+	}
 }
 
 
@@ -255,11 +275,13 @@ TrajOptProbPtr ConstructProblem(const ProblemConstructionInfo& pci) {
     }
   }
 
-  if (!bi.dofs_fixed.empty()) {
-    BOOST_FOREACH(const int& dof_ind, bi.dofs_fixed) {
-      for (int i=1; i < prob->GetNumSteps(); ++i) {
-        prob->addLinearConstr(exprSub(AffExpr(prob->m_traj_vars(i,dof_ind)), AffExpr(prob->m_traj_vars(0,dof_ind))), EQ);
-      }
+  for (int i=0; i<bi.dofs_fixed.size(); i++) {
+  	int step0 = bi.dofs_fixed[i][1];
+  	int dof_ind = bi.dofs_fixed[i][0];
+  	int step1 = bi.dofs_fixed[i][2];
+    for (int step=step0+1; step<step1; step++) {
+    	IPI_LOG_INFO("dof_ind %d steps[%d:%d]", dof_ind, step0, step);
+    	prob->addLinearConstr(exprSub(AffExpr(prob->m_traj_vars(step0,dof_ind)), AffExpr(prob->m_traj_vars(step,dof_ind))), EQ);
     }
   }
 
@@ -366,6 +388,29 @@ void PoseCntInfo::hatch(TrajOptProb& prob) {
   prob.addConstr(ConstraintPtr(new CartPoseConstraint(prob.GetVarRow(timestep), toRaveTransform(wxyz, xyz), prob.GetRAD(), link, toMask(coeffs))));
 }
 
+////////////////////// alex /////////////////////////
+void PosCntInfo::fromJson(const Value& v) {
+  FAIL_IF_FALSE(v.isMember("params"));
+  const Value& params = v["params"];
+  childFromJson(params, timestep, "timestep", gPCI->basic_info.n_steps-1);
+  childFromJson(params, xyz,"xyz");
+  childFromJson(params, pos_coeffs,"pos_coeffs", (Vector3d)Vector3d::Ones());
+
+  string linkstr;
+  childFromJson(params, linkstr, "link");
+  link = gPCI->rad->GetRobot()->GetLink(linkstr);
+  if (!link) {
+    throw MY_EXCEPTION( (boost::format("invalid link name: %s")%linkstr).str());
+  }
+}
+CntInfoPtr PosCntInfo::create() {
+  return CntInfoPtr(new PosCntInfo());
+}
+void PosCntInfo::hatch(TrajOptProb& prob) {
+  VectorXd coeffs(3); coeffs << pos_coeffs;
+  prob.addConstr(ConstraintPtr(new CartPosConstraint(prob.GetVarRow(timestep), OR::Vector(xyz[0], xyz[1], xyz[2]), prob.GetRAD(), link, toMask(coeffs))));
+}
+////////////////////// alex /////////////////////////
 
 
 void JointVelCostInfo::fromJson(const Value& v) {

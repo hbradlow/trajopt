@@ -3,6 +3,7 @@
 #include <boost/foreach.hpp>
 #include "utils/eigen_conversions.hpp"
 using namespace OpenRAVE;
+using namespace std;
 
 namespace trajopt {
 

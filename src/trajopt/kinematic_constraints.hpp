@@ -28,6 +28,12 @@ public:
   void Plot(const DblVec& x, OR::EnvironmentBase& env, std::vector<OR::GraphHandlePtr>& handles);
 };
 
+class CartPosConstraint : public ConstraintFromNumDiff, public Plotter {
+public:
+  CartPosConstraint(const VarVector& vars, const OR::Vector& pos, RobotAndDOFPtr manip, KinBody::LinkPtr link, const BoolVec& enabled=BoolVec());
+  void Plot(const DblVec& x, OR::EnvironmentBase& env, std::vector<OR::GraphHandlePtr>& handles);
+};
+
 #if 0
 class CartPositionCost : public CostFromNumDiffErr, public Plottable {
   CartPoseCost(const VarVector& vars, const OR::Vector& position, const Vector3d& pos_coeffs, RobotAndDOFPtr manip, KinBody::LinkPtr link);

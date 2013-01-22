@@ -75,7 +75,9 @@ struct BasicInfo  {
   int n_steps;
   string manip;
   string robot; // optional
-  IntVec dofs_fixed; // optional
+  // every row has the form [dof_ind, step0, step1], which specifies if that dof should be fixed between step0 (inclusive) and step1 (exclusive)
+  // alternatively, the row can be specified as [dof_ind], in which case the dof is fixed for the whole trajectory (i.e. step0=0 and step1=n_steps
+  vector<DblVec> dofs_fixed; //optional
   void fromJson(const Json::Value& v);
 };
 
@@ -159,6 +161,16 @@ struct PoseCntInfo : public CntInfo {
   Vector3d xyz;
   Vector4d wxyz;
   Vector3d pos_coeffs, rot_coeffs;
+  double coeff;
+  KinBody::LinkPtr link;
+  void fromJson(const Value& v);
+  void hatch(TrajOptProb& prob);
+  static CntInfoPtr create();
+};
+struct PosCntInfo : public CntInfo {
+  int timestep;
+  Vector3d xyz;
+  Vector3d pos_coeffs;
   double coeff;
   KinBody::LinkPtr link;
   void fromJson(const Value& v);

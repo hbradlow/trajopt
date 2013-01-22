@@ -64,7 +64,7 @@ robot.SetDOFValues([tlj.GetLimits()[-1]], [tlj.GetDOFIndex()])
 print "processing point cloud"
 
 if env.GetKinBody("convexsoup") is None:        
-    cloud = cloudprocpy.readPCDXYZ("/home/joschu/Proj/trajoptrave/bigdata/laser_cloud.pcd")
+    cloud = cloudprocpy.readPCDXYZ("../bigdata/laser_cloud.pcd")
     cloud = cloudprocpy.boxFilter(cloud, -1,5,-5,5,.1,2)
     aabb = robot.GetLink("base_link").ComputeAABB()
     (xmin,ymin,zmin) = aabb.pos() - aabb.extents()
