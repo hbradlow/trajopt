@@ -18,12 +18,12 @@ def calc_hull(points):
                 print "qhull error, returning"
                 return None,None
 
-def create_convex_soup(cloud, env, name = "convexsoup"):
+def create_convex_soup(cloud, env, name = "convexsoup", thresh = .03, min_num_vertices = 10):
     xyz = cloud.to2dArray()
-    indss = cloudprocpy.convexDecomp(cloud, .03)
+    indss = cloudprocpy.convexDecomp(cloud, thresh)
     geom_infos = []
     for (i,inds) in enumerate(indss):
-        if len(inds) < 100: continue # openrave is slow with a lot of geometries
+        if len(inds) < min_num_vertices: continue # openrave is slow with a lot of geometries
 
         origpts = xyz[inds]
         hullpoints, hullinds = calc_hull(origpts)
@@ -43,3 +43,10 @@ def create_convex_soup(cloud, env, name = "convexsoup"):
     body.SetName(name)
     body.InitFromGeometries(geom_infos)
     env.Add(body)
+
+#Same as create_convex_soup, except that the convex soup within a box have different parameter from the rest. The box has half lengths hl_box and transform T.
+def create_convex_soup_dynamic(cloud, env, T, hl_box = 0.4):
+    cloud_far = cloudprocpy.orientedBoxFilter(cloud, T.astype("float32"), -hl_box, hl_box, -hl_box, hl_box, -hl_box, hl_box, True)
+    cloud_near = cloudprocpy.orientedBoxFilter(cloud, T.astype("float32"), -hl_box, hl_box, -hl_box, hl_box, -hl_box, hl_box, False)
+    create_convex_soup(cloud_far, env, "convexsoup_far", .03, 10)
+    create_convex_soup(cloud_near, env, "convexsoup_near", .01, 4)

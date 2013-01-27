@@ -10,6 +10,7 @@
 #include "utils/eigen_conversions.hpp"
 #include "utils/eigen_slicing.hpp"
 #include <boost/algorithm/string.hpp>
+#include <limits>
 using namespace Json;
 using namespace std;
 using namespace OpenRAVE;
@@ -255,6 +256,14 @@ TrajOptProbPtr ConstructProblem(const ProblemConstructionInfo& pci) {
 
   DblVec lower, upper;
   prob->m_rad->GetDOFLimits(lower, upper);
+//  if (n_dof == 3) {
+//  	lower = DblVec(3,-std::numeric_limits<double>::infinity());
+//  	upper = DblVec(3,std::numeric_limits<double>::infinity());
+//  }
+//  IPI_LOG_INFO("sizes %d %d\n", lower.size(), upper.size());
+//  int s = lower.size();
+//  IPI_LOG_INFO("lower limits %d %d %d\n", lower[s-3], lower[s-2], lower[s-1]);
+//  IPI_LOG_INFO("upper limits %d %d %d\n", upper[s-3], upper[s-2], upper[s-1]);
   vector<double> vlower, vupper;
   vector<string> names;
   for (int i=0; i < n_steps; ++i) {
@@ -264,6 +273,8 @@ TrajOptProbPtr ConstructProblem(const ProblemConstructionInfo& pci) {
       names.push_back( (boost::format("j_%i_%i")%i%j).str() );
     }
   }
+//  IPI_LOG_INFO("sizes %d %d %d\n", names.size(), vlower.size(), vupper.size());
+//  IPI_LOG_INFO("ndof %d\n", n_dof);
   prob->createVariables(names, vlower, vupper);
   prob->m_traj_vars = VarArray(n_steps, n_dof, prob->vars_.data());
 

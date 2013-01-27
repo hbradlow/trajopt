@@ -613,7 +613,7 @@ OpenRAVE::GraphHandlePtr OSGViewer::drawtrimesh (const float *ppoints, int strid
   else {
     int nverts = *std::max_element(pIndices, pIndices + numTriangles * 3) + 1;
     vec->resize(nverts);
-    cout << "number of vertices: " << nverts << endl;
+    //cout << "number of vertices: " << nverts << endl;
     for (int i = 0; i < nverts; ++i) {
       const float* p = ppoints + i*stride/sizeof(float);
       points[i].set(p[0], p[1], p[2]);

@@ -62,6 +62,20 @@ void PointCloudXYZ_from2dArray(PointCloudXYZ* cloud, py::object arr) {
   }
 }
 
+PointCloud<pcl::PointXYZ>::Ptr PyOrientedBoxFilter(PointCloud<pcl::PointXYZ>::ConstPtr cloud, py::object arr, float xmin, float xmax, float ymin, float ymax, float zmin, float zmax, bool negative=false) {
+  string dtype = py::extract<string>(arr.attr("dtype").attr("name"));
+  if (dtype != string("float32")) throw std::runtime_error("array must have dtype float32");
+
+	int rows = py::extract<int>(arr.attr("shape")[0]);
+  int cols = py::extract<int>(arr.attr("shape")[1]);
+  if (rows != 4) throw std::runtime_error("array must have 4 rows");
+  if (cols != 4) throw std::runtime_error("array must have 4 columns");
+
+  float* p = getPointer<float>(arr);
+  Eigen::Matrix4f transform = Eigen::Map<Eigen::Matrix<float,4,4,Eigen::RowMajor> >(p);
+  return orientedBoxFilter(cloud, transform, xmin, xmax, ymin, ymax, zmin, zmax, negative);
+}
+
 py::list PyConvexDecomp(const PointCloud<PointXYZ>& cloud, float thresh) {
   vector<IntVec> hulls;
   py::list out;
@@ -86,6 +100,7 @@ BOOST_PYTHON_MODULE(cloudprocpy) {
   py::def("downsampleCloud", &downsampleCloud);
   py::def("boxFilter", &boxFilter);
   py::def("boxFilterNegative", &boxFilterNegative);
+  py::def("orientedBoxFilter", &PyOrientedBoxFilter);
   py::def("convexDecomp", &PyConvexDecomp);
 
 

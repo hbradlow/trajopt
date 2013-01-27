@@ -225,7 +225,21 @@ void RenderCollisionShape(btCollisionShape* shape, const btTransform& tf,
       hd.mVertexStride = sizeof(btVector3);
       HullLibrary hl;
 
-      if (hl.CreateConvexHull(hd, hr) == QE_FAIL) {
+
+      if (hd.mVcount == 4) { // CreateConvexHull fails when the number of vertices is 4
+				hr.mPolygons = false;
+				hr.mNumFaces = 4;
+				hr.mNumIndices = 3*hr.mNumFaces;
+				hr.m_Indices.resize(static_cast<int>(hr.mNumIndices));
+				for (int i=0; i<hr.mNumFaces; i++) {
+					hr.m_Indices[3*i] = (i)%hr.mNumFaces;
+					hr.m_Indices[3*i+1] = (i+1)%hr.mNumFaces;
+					hr.m_Indices[3*i+2] = (i+2)%hr.mNumFaces;
+				}
+				hr.mNumOutputVertices = hd.mVcount;
+				hr.m_OutputVertices.resize(static_cast<int>(hr.mNumOutputVertices));
+				memcpy(&hr.m_OutputVertices[0], &hd.mVertices[0], sizeof(btVector3)*hr.mNumOutputVertices);
+			} else if (hl.CreateConvexHull(hd, hr) == QE_FAIL) {
         RAVELOG_ERROR("convex hull computation failed on shape with %i vertices\n", convex->getNumPoints());
         hr.mNumFaces = 0;
       }

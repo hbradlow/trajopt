@@ -25,6 +25,7 @@ pcl::PolygonMesh::Ptr createMesh_ofm(PointCloud<pcl::PointXYZ>::ConstPtr cloud);
 PointCloud<pcl::PointXYZ>::Ptr toXYZ(PointCloud<pcl::PointNormal>::ConstPtr in);
 PointCloud<pcl::PointXYZ>::Ptr boxFilter(PointCloud<pcl::PointXYZ>::ConstPtr, float xmin, float xmax, float ymin, float ymax, float zmin, float zmax);
 PointCloud<pcl::PointXYZ>::Ptr boxFilterNegative(PointCloud<pcl::PointXYZ>::ConstPtr, float xmin, float xmax, float ymin, float ymax, float zmin, float zmax);
+PointCloud<pcl::PointXYZ>::Ptr orientedBoxFilter(PointCloud<pcl::PointXYZ>::ConstPtr in, const Eigen::Matrix4f& transform, float xmin, float xmax, float ymin, float ymax, float zmin, float zmax, bool negative);
 
 
 enum MeshFormat {

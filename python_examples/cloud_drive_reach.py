@@ -17,7 +17,7 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
         "costs" : [
         {
             "type" : "joint_vel",
-            "params": {"coeffs" : [1]}
+            "params": {"coeffs" : np.r_[np.ones(8), 10*np.ones(3)].tolist()}
         },            
         {
             "type" : "collision",
@@ -55,7 +55,7 @@ if env is None:
 robot = env.GetRobots()[0]
 robot.SetDOFValues(np.zeros(robot.GetDOF()))
 robot_transform = np.eye(4)
-robot_transform[2,3] = 2
+#robot_transform[2,3] = 2
 robot.SetTransform(robot_transform)
 rgj = robot.GetJoint("r_gripper_l_finger_joint")
 robot.SetDOFValues([rgj.GetLimits()[-1]], [rgj.GetDOFIndex()])
@@ -64,27 +64,26 @@ robot.SetDOFValues([tlj.GetLimits()[-1]], [tlj.GetDOFIndex()])
     
 print "processing point cloud"
 
+T = np.eye(4)
+T[:3,3] = [ 1.27   , -0.2   ,  0.790675]
+
 if env.GetKinBody("convexsoup") is None:        
-    cloud = cloudprocpy.readPCDXYZ("../bigdata/out2.pcd")
+    cloud = cloudprocpy.readPCDXYZ("../bigdata/laser_cloud.pcd")
     cloud = cloudprocpy.boxFilter(cloud, -1,5,-5,5,.1,2)
     aabb = robot.GetLink("base_link").ComputeAABB()
     (xmin,ymin,zmin) = aabb.pos() - aabb.extents()
     (xmax,ymax,zmax) = aabb.pos() + aabb.extents()
     cloud = cloudprocpy.boxFilterNegative(cloud, xmin,xmax,ymin,ymax,zmin,zmax)
     #cloud = cloudprocpy.downsampleCloud(cloud, .015)
-    convex_soup.create_convex_soup(cloud, env)
+    convex_soup.create_convex_soup_dynamic(cloud, env, T)
 
 import IPython
 viewer = trajoptpy.GetViewer(env)
 IPython.lib.inputhook.set_inputhook(viewer.Step)
 print "done processing"
 
-T = np.eye(4)
-T[:3,3] = [ 1.27   , -0.2   ,  0.790675]
-
-
 ##################
-handle = trajoptpy.GetCollisionChecker(env).PlotCollisionGeometry()
+#handle = trajoptpy.GetCollisionChecker(env).PlotCollisionGeometry()
 
 
 pose = rave.poseFromMatrix(T)
