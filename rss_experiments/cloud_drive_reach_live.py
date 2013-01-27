@@ -89,7 +89,6 @@ print "ok"
 xyz = ru.pc2xyz(pc)
 xyz = ru.transform_points(xyz, pr2.tf_listener, "base_footprint", pc.header.frame_id)
 xyz = xyz.reshape(-1,3).astype('float32')
-np.save("../bigdata/xyz_cloud", xyz)
 cloud = cloudprocpy.PointCloudXYZ()
 cloud.from2dArray(xyz)
 cloud = cloudprocpy.boxFilter(cloud, -1,5,-3,3,.1,2)
