@@ -1,4 +1,5 @@
 import cloudprocpy
+import openravepy as rave
 import numpy as np
 from trajoptpy import convex_soup
 import brett2.ros_utils as ru
@@ -43,7 +44,7 @@ def select_waypoint(name, use_cached=True, xyz_base=[1,0,1], xyzw_base=[0,0,0,1]
 
     if use_cached:
         try:
-            tf_odom = np.load("../data/"+name+".npy")
+            tf_odom = np.load("../data/cached_transforms/"+name+".npy")
             tf_base = odom_to_base_tf.dot(tf_odom)
             xyz_base,  xyzw_base = conversions.hmat_to_trans_rot(tf_base)
         except IOError:
@@ -55,7 +56,7 @@ def select_waypoint(name, use_cached=True, xyz_base=[1,0,1], xyzw_base=[0,0,0,1]
     
     tf_base = conversions.trans_rot_to_hmat(xyz_base, xyzw_base)
     tf_odom = base_to_odom_tf.dot(tf_base)
-    np.save("../data/"+name+".npy", tf_odom)
+    np.save("../data/cached_transforms/"+name+".npy", tf_odom)
     
     return xyz_base, np.r_[xyzw_base[3], xyzw_base[:3]].tolist()
 
@@ -69,9 +70,10 @@ def get_cloud(cloud_topic, pr2):
     xyz = xyz.reshape(-1,3).astype('float32')
     cloud = cloudprocpy.PointCloudXYZ()
     cloud.from2dArray(xyz)
+    return cloud
 
 # return the box's transform
-def attach_box_to_manip(robot, env, manip_name, half_lengths, offset = np.array([0,0,0])):
+def attach_box_to_manip(robot, env, frame, half_lengths, offset = np.array([0,0,0])):
     hx = half_lengths[0]
     hy = half_lengths[1]
     hz = half_lengths[2]
@@ -79,8 +81,7 @@ def attach_box_to_manip(robot, env, manip_name, half_lengths, offset = np.array(
     points += np.array(offset)
     points, inds = convex_soup.calc_hull(points)
     
-    manip = robot.GetManipulator(manip_name)
-    transform = manip.GetTransform().astype("float32")
+    transform = robot.GetLink("r_gripper_tool_frame").GetTransform().astype("float32")
     
     # transform points
     points = np.append(points, np.ones((points.shape[0],1)), 1)
