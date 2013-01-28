@@ -119,8 +119,6 @@ void BasicInfo::fromJson(const Json::Value& v) {
 	  } else {
 	  	throw MY_EXCEPTION("number of cols for dofs_fixed should be 1 or 3");
 	  }
-    if (row[0]<0) // || row[0]>=gPCI->rad->GetDOF())
-			throw MY_EXCEPTION("dof_ind should be between 0 and n_dof (exclusive)");
 		dofs_fixed.push_back(row);
 	}
 }
@@ -297,7 +295,7 @@ TrajOptProbPtr ConstructProblem(const ProblemConstructionInfo& pci) {
 
   for (int i=0; i<bi.dofs_fixed.size(); i++) {
   	int step0 = bi.dofs_fixed[i][1];
-  	int dof_ind = bi.dofs_fixed[i][0];
+  	int dof_ind = ((((int)bi.dofs_fixed[i][0]) % n_dof) + n_dof) % n_dof; // wrap around by n_dof
   	int step1 = bi.dofs_fixed[i][2];
     for (int step=step0+1; step<step1; step++) {
     	IPI_LOG_INFO("dof_ind %d steps[%d:%d]", dof_ind, step0, step);
