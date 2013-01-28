@@ -7,6 +7,7 @@ include_directories(
 )
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 add_library(trajopt SHARED 
+	collision_avoidance.cpp
 	json_marshal.cpp
 	problem_description.cpp
 	bullet_collision_checker.cpp 
@@ -14,7 +15,6 @@ add_library(trajopt SHARED
 	robot_and_dof.cpp 
 	utils.cpp
 	rave_utils.cpp
-	collision_avoidance.cpp
 	collision_checker.cpp
 	plot_callback.cpp
 )
@@ -26,9 +26,10 @@ target_link_libraries(trajopt ${BULLET_LIBRARIES} ${OpenRAVE_BOTH_LIBRARIES} ${B
 #set_target_properties(trajoptplugin PROPERTIES COMPILE_FLAGS "${OpenRAVE_CXX_FLAGS}" LINK_FLAGS "${OpenRAVE_LINK_FLAGS}")
 #target_link_libraries(trajoptplugin ${OpenRAVE_LIBRARIES} trajopt)
 
+add_subdirectory(test)
+
 include_directories(${PYTHON_NUMPY_INCLUDE_DIR})
 boost_python_module(ctrajoptpy trajoptpy.cpp)
 target_link_libraries(ctrajoptpy trajopt ${Boost_SYSTEM_LIBRARY} )
 
-add_subdirectory(test)
 

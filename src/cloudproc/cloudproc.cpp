@@ -11,6 +11,7 @@
 #include <pcl/surface/marching_cubes.h>
 #include <pcl/surface/marching_cubes_hoppe.h>
 #include <pcl/surface/convex_hull.h>
+#include <pcl/common/transforms.h>
 using namespace std;
 using namespace pcl;
 
@@ -181,6 +182,18 @@ PointCloud<pcl::PointXYZ>::Ptr boxFilterNegative(PointCloud<pcl::PointXYZ>::Cons
   }
   setWidthToSize(out);
   return out;
+}
+
+PointCloud<pcl::PointXYZ>::Ptr orientedBoxFilter(PointCloud<pcl::PointXYZ>::ConstPtr in, const Eigen::Matrix4f& transform, float xmin, float xmax, float ymin, float ymax, float zmin, float zmax, bool negative) {
+	PointCloud<pcl::PointXYZ>::Ptr out(new PointCloud<pcl::PointXYZ>());
+	Eigen::Matrix4f transform_inv = transform.inverse();
+	transformPointCloud(*in, *out, transform_inv);
+	if (negative)
+		out = boxFilterNegative(out, xmin, xmax, ymin, ymax, zmin, zmax);
+	else
+		out = boxFilter(out, xmin, xmax, ymin, ymax, zmin, zmax);
+	transformPointCloud(*out, *out, transform);
+	return out;
 }
 
 void saveMesh(pcl::PolygonMesh::ConstPtr mesh, const std::string& fname, MeshFormat fmt) {
