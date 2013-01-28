@@ -66,15 +66,18 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ, xyz_hinge, qua
         }
     }
 
+    xyzw_targ = np.r_[quat_targ[1:], quat_targ[0]].tolist()
+    xyzw_hinge = np.r_[quat_hinge[1:], quat_hinge[0]].tolist()
     angle_step = np.pi*.2/n_steps
     for i in xrange(n_steps):
         angle = angle_step*i
 
-        T_world_handle = conversions.trans_rot_to_hmat(xyz_targ,quat_targ)
-        T_world_hinge = conversions.trans_rot_to_hmat(xyz_hinge,quat_hinge)
+        T_world_handle = conversions.trans_rot_to_hmat(xyz_targ,xyzw_targ)
+        T_world_hinge = conversions.trans_rot_to_hmat(xyz_hinge,xyzw_hinge)
         T_hinge_handle = np.linalg.inv(T_world_hinge).dot(T_world_handle)
         
         hmat = T_world_hinge.dot(rave.matrixFromAxisAngle([0,0,1],angle)).dot(T_hinge_handle)
+
         poses = rave.poseFromMatrices([hmat])
         xyz = poses[0,4:7]
         quat = poses[0,0:4]
