@@ -37,7 +37,6 @@ def pose_traj_request(robot, hmats):
     quats = poses[:,0:4]
     
     for i in xrange(1, n_steps-1):
-        print "waypoint xyz", xyzs[i]
         waypoint_cnt = {
             "type" : "pose",
             "name" : "waypoint_pose",
@@ -49,6 +48,7 @@ def pose_traj_request(robot, hmats):
                 "rot_coeffs" : [1,1,1],
                 "timestep" : i
             }}
+        print "waypoint xyz", waypoint_cnt
         request["constraints"].append(waypoint_cnt)    
 
     return request    

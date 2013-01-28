@@ -241,6 +241,7 @@ class SixDOFControl(MarkerControl):
         
     def process(self, feedback):
         pos = feedback.pose.position
+        self.pose = feedback.pose
         self.xyz = [pos.x, pos.y, pos.z]
         quat = feedback.pose.orientation
         self.xyzw = [quat.x, quat.y, quat.z, quat.w]
