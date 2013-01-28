@@ -11,10 +11,12 @@ from brett2 import trajectories
 import basic_controls
 import rospy
 
+from jds_utils import conversions
+
 
 if rospy.get_name() == "/unnamed": rospy.init_node('cloud_drive_reach_live')
 
-def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
+def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ, xyz_hinge, quat_hinge, n_steps=10):
         
     request = {
         "basic_info" : {
@@ -64,6 +66,33 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
         }
     }
 
+    angle_step = np.pi*.2/n_steps
+    for i in xrange(n_steps):
+        angle = angle_step*i
+
+        T_world_handle = conversions.trans_rot_to_hmat(xyz_targ,quat_targ)
+        T_world_hinge = conversions.trans_rot_to_hmat(xyz_hinge,quat_hinge)
+        T_hinge_handle = np.linalg.inv(T_world_hinge).dot(T_world_handle)
+        
+        hmat = T_world_hinge.dot(rave.matrixFromAxisAngle([0,0,1],angle)).dot(T_hinge_handle)
+        poses = rave.poseFromMatrices([hmat])
+        xyz = poses[0,4:7]
+        quat = poses[0,0:4]
+        
+        waypoint_cnt = {
+            "type" : "pose",
+            "name" : "waypoint_pose",
+            "params" : {
+                "xyz" : list(xyz),
+                "wxyz" : list(quat),
+                "link" : "l_gripper_tool_frame",
+                "pos_coeffs" : [1,1,1],
+                "rot_coeffs" : [1,1,1],
+                "timestep" : i
+            }}
+        print "waypoint xyz", waypoint_cnt
+        request["constraints"].append(waypoint_cnt)    
+
     return request    
 
 
@@ -73,13 +102,10 @@ robot = pr2.robot
 from time import sleep
 sleep(1)
 
-marker = basic_controls.SixDOFControl( False , [1,0,0], [0,0,0,1])
-raw_input("now choose target pose with interactive markers. press enter when done")
+xyz_targ,wxyz_targ = select_waypoint("handle")
 
-xyz_targ = marker.xyz
-wxyz_targ = np.r_[marker.xyzw[3], marker.xyzw[:3]].tolist()
-print xyz_targ
-print wxyz_targ
+xyz_hinge,wxyz_hinge= select_waypoint("hinge")
+
 
 print "waiting for point cloud on /drop/points_self_filtered"
 import sensor_msgs.msg as sm
@@ -91,7 +117,7 @@ xyz = ru.transform_points(xyz, pr2.tf_listener, "base_footprint", pc.header.fram
 xyz = xyz.reshape(-1,3).astype('float32')
 cloud = cloudprocpy.PointCloudXYZ()
 cloud.from2dArray(xyz)
-cloud = cloudprocpy.boxFilter(cloud, -1,5,-3,3,.1,2)
+#cloud = cloudprocpy.boxFilter(cloud, -1,5,-3,3,.1,2)
 #aabb = robot.GetLink("base_link").ComputeAABB()
 #(xmin,ymin,zmin) = aabb.pos() - aabb.extents()
 #(xmax,ymax,zmax) = aabb.pos() + aabb.extents()
@@ -103,7 +129,7 @@ convex_soup.create_convex_soup(cloud, env)
 
 ##################
 
-request = drive_to_reach_request(robot, "l_gripper_tool_frame", xyz_targ, wxyz_targ)
+request = drive_to_reach_request(robot, "l_gripper_tool_frame", xyz_targ, wxyz_targ, xyz_hinge, wxyz_targ)
 #request = drive_to_reach_request(robot, "base_footprint", xyz_targ, wxyz_targ)
 s = json.dumps(request)
 print "REQUEST:",s
