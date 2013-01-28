@@ -10,6 +10,7 @@ from brett2.PR2 import PR2
 from brett2 import trajectories
 import basic_controls
 import rospy
+from experiments_utils import *
 
 from jds_utils import conversions
 
@@ -22,7 +23,7 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ, xyz_hinge, qua
         "basic_info" : {
             "n_steps" : 30,
             #"manip" : "rightarm+leftarm+base",
-            "manip" : "leftarm+base",
+            "manip" : "rightarm+base",
             #r_gripper_l_finger_joint
             "start_fixed" : True
         },
@@ -66,15 +67,18 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ, xyz_hinge, qua
         }
     }
 
+    xyzw_targ = np.r_[quat_targ[1:], quat_targ[0]].tolist()
+    xyzw_hinge = np.r_[quat_hinge[1:], quat_hinge[0]].tolist()
     angle_step = np.pi*.2/n_steps
     for i in xrange(n_steps):
         angle = angle_step*i
 
-        T_world_handle = conversions.trans_rot_to_hmat(xyz_targ,quat_targ)
-        T_world_hinge = conversions.trans_rot_to_hmat(xyz_hinge,quat_hinge)
+        T_world_handle = conversions.trans_rot_to_hmat(xyz_targ,xyzw_targ)
+        T_world_hinge = conversions.trans_rot_to_hmat(xyz_hinge,xyzw_hinge)
         T_hinge_handle = np.linalg.inv(T_world_hinge).dot(T_world_handle)
         
         hmat = T_world_hinge.dot(rave.matrixFromAxisAngle([0,0,1],angle)).dot(T_hinge_handle)
+
         poses = rave.poseFromMatrices([hmat])
         xyz = poses[0,4:7]
         quat = poses[0,0:4]
@@ -85,7 +89,7 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ, xyz_hinge, qua
             "params" : {
                 "xyz" : list(xyz),
                 "wxyz" : list(quat),
-                "link" : "l_gripper_tool_frame",
+                "link" : "r_gripper_tool_frame",
                 "pos_coeffs" : [1,1,1],
                 "rot_coeffs" : [1,1,1],
                 "timestep" : i
@@ -129,7 +133,7 @@ convex_soup.create_convex_soup(cloud, env)
 
 ##################
 
-request = drive_to_reach_request(robot, "l_gripper_tool_frame", xyz_targ, wxyz_targ, xyz_hinge, wxyz_targ)
+request = drive_to_reach_request(robot, "r_gripper_tool_frame", xyz_targ, wxyz_targ, xyz_hinge, wxyz_targ)
 #request = drive_to_reach_request(robot, "base_footprint", xyz_targ, wxyz_targ)
 s = json.dumps(request)
 print "REQUEST:",s
