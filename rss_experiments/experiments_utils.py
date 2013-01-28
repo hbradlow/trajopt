@@ -9,6 +9,7 @@ roslib.load_manifest("tf")
 import rospy
 from jds_utils import conversions
 import tf
+from experiments_utils import *
 
 def get_transform(frame1, frame2):
     tf_listener = tf.TransformListener()
@@ -58,7 +59,7 @@ def select_waypoint(name, use_cached=True, xyz_base=[1,0,1], xyzw_base=[0,0,0,1]
     
     return xyz_base, np.r_[xyzw_base[3], xyzw_base[:3]].tolist()
 
-def get_cloud_and_create_convex_soup(cloud_topic, pr2, env):
+def get_cloud(cloud_topic, pr2):
     print "waiting for point cloud " + cloud_topic
     import sensor_msgs.msg as sm
     pc = rospy.wait_for_message(cloud_topic, sm.PointCloud2)
@@ -68,4 +69,36 @@ def get_cloud_and_create_convex_soup(cloud_topic, pr2, env):
     xyz = xyz.reshape(-1,3).astype('float32')
     cloud = cloudprocpy.PointCloudXYZ()
     cloud.from2dArray(xyz)
-    convex_soup.create_convex_soup(cloud, env)
+
+# return the box's transform
+def attach_box_to_manip(robot, env, manip_name, half_lengths, offset = np.array([0,0,0])):
+    hx = half_lengths[0]
+    hy = half_lengths[1]
+    hz = half_lengths[2]
+    points = np.array([[-hx, -hy, -hz], [hx, -hy, -hz], [hx, hy, -hz], [-hx, hy, -hz], [-hx, -hy, +hz], [hx, -hy, +hz], [hx, hy, +hz], [-hx, hy, +hz]])
+    points += np.array(offset)
+    points, inds = convex_soup.calc_hull(points)
+    
+    manip = robot.GetManipulator(manip_name)
+    transform = manip.GetTransform().astype("float32")
+    
+    # transform points
+    points = np.append(points, np.ones((points.shape[0],1)), 1)
+    points = points.dot(transform.transpose())[:,:3]
+    
+    geom_infos = []
+    gi = rave.KinBody.GeometryInfo()
+    gi._meshcollision = rave.TriMesh(points, inds)
+    gi._type = rave.GeometryType.Trimesh
+    gi._vAmbientColor = np.random.rand(3)/2
+    geom_infos.append(gi)
+    
+    body = rave.RaveCreateKinBody(env,'')
+    body.SetName('box')
+    body.InitFromGeometries(geom_infos)
+    env.Add(body)
+    
+    robot.Grab(env.GetKinBody('box'))
+    
+    return transform
+

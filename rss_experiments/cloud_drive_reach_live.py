@@ -10,7 +10,7 @@ from brett2.PR2 import PR2
 from brett2 import trajectories
 import basic_controls
 import rospy
-
+from experiments_utils import *
 from jds_utils import conversions
 
 
@@ -22,7 +22,7 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ, xyz_hinge, qua
         "basic_info" : {
             "n_steps" : 30,
             #"manip" : "rightarm+leftarm+base",
-            "manip" : "leftarm+base",
+            "manip" : "rightarm+base",
             #r_gripper_l_finger_joint
             "start_fixed" : True
         },
@@ -85,7 +85,7 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ, xyz_hinge, qua
             "params" : {
                 "xyz" : list(xyz),
                 "wxyz" : list(quat),
-                "link" : "l_gripper_tool_frame",
+                "link" : "r_gripper_tool_frame",
                 "pos_coeffs" : [1,1,1],
                 "rot_coeffs" : [1,1,1],
                 "timestep" : i
@@ -102,7 +102,10 @@ robot = pr2.robot
 from time import sleep
 sleep(1)
 
-xyz_targ,wxyz_targ = select_waypoint("handle")
+#xyz_targ,wxyz_targ = select_waypoint("handle")
+manip = robot.GetManipulator("rightarm")
+transform = manip.GetTransform().astype("float32")
+xyz_targ,wxyz_targ = conversions.hmat_to_trans_rot(transform)
 
 xyz_hinge,wxyz_hinge= select_waypoint("hinge")
 
@@ -129,7 +132,7 @@ convex_soup.create_convex_soup(cloud, env)
 
 ##################
 
-request = drive_to_reach_request(robot, "l_gripper_tool_frame", xyz_targ, wxyz_targ, xyz_hinge, wxyz_targ)
+request = drive_to_reach_request(robot, "r_gripper_tool_frame", xyz_targ, wxyz_targ, xyz_hinge, wxyz_targ)
 #request = drive_to_reach_request(robot, "base_footprint", xyz_targ, wxyz_targ)
 s = json.dumps(request)
 print "REQUEST:",s
