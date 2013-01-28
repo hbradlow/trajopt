@@ -54,8 +54,8 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
 if rospy.get_name() == "/unnamed": rospy.init_node('cloud_drive_reach_live3')
 
 ##################
-#cloud_topic = "/cloud_pcd"
-cloud_topic = "/drop/points_self_filtered"
+cloud_topic = "/cloud_pcd"
+#cloud_topic = "/drop/points_self_filtered"
 ##################
 
 pr2 = PR2.create()
@@ -64,15 +64,17 @@ robot = pr2.robot
 
 xyz_targ, wxyz_targ = select_waypoint("hold_cup_target")
 
-half_extents = np.array([0.03, 0.03, 0.08])
-offset = np.array([0.05,0,0]) # box center offset in gripper frame
-T_gripper = robot.GetLink("r_gripper_tool_frame").GetTransform()
-T_gripper_offset = np.eye(4)
-T_gripper_offset[:3,3] = offset
-T_box = T_gripper.dot(T_gripper_offset)
-box = make_kinbodies.create_mesh_box(env, [0,0,0], half_extents)
-box.SetTransform(T_box)
-robot.Grab(box)
+make_collision_shape = False
+if make_collision_shape:
+    half_extents = np.array([0.03, 0.03, 0.08])
+    offset = np.array([0.05,0,0]) # box center offset in gripper frame
+    T_gripper = robot.GetLink("r_gripper_tool_frame").GetTransform()
+    T_gripper_offset = np.eye(4)
+    T_gripper_offset[:3,3] = offset
+    T_box = T_gripper.dot(T_gripper_offset)
+    box = make_kinbodies.create_mesh_box(env, [0,0,0], half_extents)
+    box.SetTransform(T_box)
+    robot.Grab(box)
 
 cloud = get_cloud(cloud_topic, pr2)
 cloud = cloudprocpy.orientedBoxFilter(cloud, T_box.astype("float32"), -half_extents[0], half_extents[0], -half_extents[1], half_extents[1], -half_extents[2], half_extents[2], True) # removes the object being held

@@ -18,13 +18,13 @@ import rospy
 from experiments_utils import *
 
 def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
-    n_steps = 15
-    n_dof = 11
+    n_steps = 20
+    n_dof = 10
     fixed_base_n_steps = 5 # number of steps whose base should all be equal at the end
     request = {
         "basic_info" : {
             "n_steps" : n_steps,
-            "manip" : "rightarm+base+r_gripper_l_finger_joint",
+            "manip" : "rightarm+base",
             "start_fixed" : True,
             "dofs_fixed": [[-1,n_steps-fixed_base_n_steps,n_steps],[-2,n_steps-fixed_base_n_steps,n_steps],[-3,n_steps-fixed_base_n_steps,n_steps]]
         },
@@ -37,17 +37,17 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
             "type" : "collision",
             "params" : {"coeffs" : [10],"dist_pen" : [0.01]}
         },
-        {
-            "type" : "pose",
-            "name" : "final_pose",
-            "params" : {
-                "pos_coeffs" : [100,100,100],
-                "rot_coeffs" : [100,100,100],
-                "xyz" : list(xyz_targ),
-                "wxyz" : list(quat_targ),
-                "link" : link_name,
-            },
-        }
+#        {
+#            "type" : "pose",
+#            "name" : "final_pose",
+#            "params" : {
+#                "pos_coeffs" : [200,200,200],
+#                "rot_coeffs" : [100,100,100],
+#                "xyz" : list(xyz_targ),
+#                "wxyz" : list(quat_targ),
+#                "link" : link_name,
+#            },
+#        }
         ],
         "constraints" : [
         {
@@ -95,7 +95,8 @@ pr2 = PR2.create()
 env = pr2.env
 robot = pr2.robot
 
-xyz_targ, wxyz_targ = select_waypoint("reach_cup_target")
+#xyz_targ, wxyz_targ = select_waypoint("reach_cup_target")
+xyz_targ, wxyz_targ = select_waypoint("trash")
 
 #cloud = get_cloud(cloud_topic, pr2)
 print "waiting for point cloud on " + cloud_topic
