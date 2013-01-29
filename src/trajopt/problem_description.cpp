@@ -35,6 +35,8 @@ void RegisterMakers() {
 
   CntInfo::RegisterMaker("joint", &JointConstraintInfo::create);
   CntInfo::RegisterMaker("pose", &PoseCntInfo::create);
+  CntInfo::RegisterMaker("rel_pose", &RelPoseCntInfo::create);
+
   CntInfo::RegisterMaker("pos", &PosCntInfo::create);
   CntInfo::RegisterMaker("cart_vel", &CartVelCntInfo::create);
 
@@ -169,7 +171,7 @@ CntInfoPtr CntInfo::fromName(const string& type) {
     return (*name2maker[type])();
   }
   else {
-    RAVELOG_ERROR("There is no constraint of type%s\n", type.c_str());
+    RAVELOG_ERROR("There is no constraint of type %s\n", type.c_str());
     return CntInfoPtr();
   }
 }
@@ -285,12 +287,21 @@ TrajOptProbPtr ConstructProblem(const ProblemConstructionInfo& pci) {
   DblVec cur_dofvals = prob->m_rad->GetDOFValues();
 
   if (bi.start_fixed) {
-    if (pci.init_info.data.rows() > 0 && !allClose(toVectorXd(cur_dofvals), pci.init_info.data.row(0))) {
-      throw MY_EXCEPTION( "robot dof values don't match initialization. I don't know what you want me to use for the dof values");
+  	DblVec clipped_cur_dofvals = prob->m_rad->GetDOFValues();
+  	for (int j=0; j < n_dof; ++j) {
+      if (cur_dofvals[j]<lower[j]) {
+      	IPI_LOG_WARNING("The joint value for the %dth dof is less than the lower limit by %f. The value is clipped.",j,lower[j]-clipped_cur_dofvals[j]);
+      	clipped_cur_dofvals[j] = lower[j];
+      }
+      if (cur_dofvals[j]>upper[j]) {
+				IPI_LOG_WARNING("The joint value for the %dth dof is less than the upper limit by %f. The value is clipped.",j,clipped_cur_dofvals[j]-upper[j]);
+				clipped_cur_dofvals[j] = upper[j];
+			}
+    	prob->addLinearConstr(exprSub(AffExpr(prob->m_traj_vars(0,j)), clipped_cur_dofvals[j]), EQ);
     }
-    for (int j=0; j < n_dof; ++j) {
-      prob->addLinearConstr(exprSub(AffExpr(prob->m_traj_vars(0,j)), cur_dofvals[j]), EQ);
-    }
+		if (pci.init_info.data.rows() > 0 && !(allClose(toVectorXd(cur_dofvals), pci.init_info.data.row(0)) || allClose(toVectorXd(clipped_cur_dofvals), pci.init_info.data.row(0)))) {
+			throw MY_EXCEPTION( "robot dof values don't match initialization. I don't know what you want me to use for the dof values");
+		}
   }
 
   for (int i=0; i<bi.dofs_fixed.size(); i++) {
@@ -404,6 +415,31 @@ CntInfoPtr PoseCntInfo::create() {
 void PoseCntInfo::hatch(TrajOptProb& prob) {
   VectorXd coeffs(6); coeffs << rot_coeffs, pos_coeffs;
   prob.addConstr(ConstraintPtr(new CartPoseConstraint(prob.GetVarRow(timestep), toRaveTransform(wxyz, xyz), prob.GetRAD(), link, toMask(coeffs))));
+}
+
+void RelPoseCntInfo::fromJson(const Value& v) {
+  FAIL_IF_FALSE(v.isMember("params"));
+  const Value& params = v["params"];
+  childFromJson(params, timestep, "timestep", gPCI->basic_info.n_steps-1);
+  childFromJson(params, xyz,"xyz");
+  childFromJson(params, wxyz,"wxyz");
+  childFromJson(params, pos_coeffs,"pos_coeffs", (Vector3d)Vector3d::Ones());
+  childFromJson(params, rot_coeffs,"rot_coeffs", (Vector3d)Vector3d::Ones());
+
+  string linkstr;
+  childFromJson(params, linkstr, "link1");
+  link1 = gPCI->rad->GetRobot()->GetLink(linkstr);
+  if (!link1) throw MY_EXCEPTION( (boost::format("invalid link1 name: %s")%linkstr).str());
+  childFromJson(params, linkstr, "link2");
+  link2 = gPCI->rad->GetRobot()->GetLink(linkstr);
+  if (!link2) throw MY_EXCEPTION( (boost::format("invalid link2 name: %s")%linkstr).str());
+}
+CntInfoPtr RelPoseCntInfo::create() {
+  return CntInfoPtr(new RelPoseCntInfo());
+}
+void RelPoseCntInfo::hatch(TrajOptProb& prob) {
+  VectorXd coeffs(6); coeffs << rot_coeffs, pos_coeffs;
+  prob.addConstr(ConstraintPtr(new CartRelPoseConstraint(prob.GetVarRow(timestep), toRaveTransform(wxyz, xyz), prob.GetRAD(), link1, link2, toMask(coeffs))));
 }
 
 ////////////////////// alex /////////////////////////

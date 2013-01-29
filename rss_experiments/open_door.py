@@ -27,7 +27,7 @@ elif len(sys.argv) == 5:
     angle = float(sys.argv[3])*np.pi/180.0
     make_collision_shape = int(sys.argv[4])
 else:
-    raise NameError('Wrong number of arguments. Usage: recording.py [arm_side hinge_name angle(deg)]')
+    raise NameError('Wrong number of arguments. Usage: recording.py [arm_side hinge_name angle(deg) make_collision_shape]')
 
 if arm_side=="left":
     manip_name = "leftarm"
@@ -44,7 +44,7 @@ print angle
 
 if rospy.get_name() == "/unnamed": rospy.init_node('cloud_drive_reach_live')
 
-def drive_to_reach_request(robot, hmats, xyz_targ, wxyz_targ, xyz_hinge, wxyz_hinge):
+def open_door_request(robot, hmats, xyz_targ, wxyz_targ, xyz_hinge, wxyz_hinge):
     n_steps = len(hmats)
     n_dof = 2*7+3
     request = {
@@ -56,7 +56,7 @@ def drive_to_reach_request(robot, hmats, xyz_targ, wxyz_targ, xyz_hinge, wxyz_hi
         "costs" : [
         {
             "type" : "joint_vel",
-            "params": {"coeffs" : np.r_[np.ones(n_dof-3), 10*np.ones(3)].tolist()}
+            "params": {"coeffs" : np.r_[np.ones(n_dof-3), 100*np.ones(3)].tolist()}
         },            
         {
             "type" : "collision",
@@ -92,8 +92,8 @@ def drive_to_reach_request(robot, hmats, xyz_targ, wxyz_targ, xyz_hinge, wxyz_hi
 
 ##################
 #cloud_topic = "/cloud_pcd"
-#cloud_topic = "/drop/points_self_filtered"
-cloud_topic = "/octomap_point_cloud_centers"
+cloud_topic = "/drop/points_self_filtered"
+#cloud_topic = "/octomap_point_cloud_centers"
 ##################
 
 pr2 = PR2.create()
@@ -140,7 +140,7 @@ convex_soup.create_convex_soup(cloud, env)
 
 ##################
 
-request = drive_to_reach_request(robot, hmats, xyz_targ, wxyz_targ, xyz_hinge, wxyz_hinge)
+request = open_door_request(robot, hmats, xyz_targ, wxyz_targ, xyz_hinge, wxyz_hinge)
 #request = drive_to_reach_request(robot, "base_footprint", xyz_targ, wxyz_targ)
 s = json.dumps(request)
 print "REQUEST:",s

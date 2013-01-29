@@ -75,7 +75,7 @@ if env.GetKinBody("convexsoup") is None:
     (xmax,ymax,zmax) = aabb.pos() + aabb.extents()
     cloud = cloudprocpy.boxFilterNegative(cloud, xmin,xmax,ymin,ymax,zmin,zmax)
     #cloud = cloudprocpy.downsampleCloud(cloud, .015)
-    convex_soup.create_convex_soup_dynamic(cloud, env, T)
+    convex_soup.create_convex_soup(cloud, env)
 
 import IPython
 viewer = trajoptpy.GetViewer(env)

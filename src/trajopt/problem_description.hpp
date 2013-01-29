@@ -167,6 +167,18 @@ struct PoseCntInfo : public CntInfo {
   void hatch(TrajOptProb& prob);
   static CntInfoPtr create();
 };
+struct RelPoseCntInfo : public CntInfo {
+  int timestep;
+  Vector3d xyz;
+  Vector4d wxyz;
+  Vector3d pos_coeffs, rot_coeffs;
+  double coeff;
+  KinBody::LinkPtr link1;
+  KinBody::LinkPtr link2;
+  void fromJson(const Value& v);
+  void hatch(TrajOptProb& prob);
+  static CntInfoPtr create();
+};
 struct PosCntInfo : public CntInfo {
   int timestep;
   Vector3d xyz;

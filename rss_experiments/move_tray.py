@@ -20,9 +20,12 @@ import rospy
 from experiments_utils import *
 import sys
 
+link1_name = "l_gripper_tool_frame"
+link2_name = "r_gripper_tool_frame"
+
 if len(sys.argv) == 1:
     arm_side = "left"
-    target_name = "reach_paper"
+    target_name = "move_tray"
 elif len(sys.argv) == 3:
     arm_side = sys.argv[1]
     target_name = sys.argv[2]
@@ -30,10 +33,8 @@ else:
     raise NameError('Wrong number of arguments. Usage: recording.py [arm_side target_name]')
 
 if arm_side=="left":
-    manip_name = "leftarm"
     link_name = "l_gripper_tool_frame"
 elif arm_side == "right":
-    manip_name = "rightarm"
     link_name = "r_gripper_tool_frame"
 else:
     raise NameError('Invalid arm side')
@@ -41,37 +42,24 @@ else:
 print arm_side
 print target_name
 
-def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
+def move_tray_request(robot, link_name, xyz_targ, quat_targ, xyz_rel, quat_rel):
     n_steps = 10
-    n_dof = 10
-    fixed_base_n_steps = 5 # number of steps whose base should all be equal at the end
+    n_dof = 2*7+3
     request = {
         "basic_info" : {
             "n_steps" : n_steps,
-            "manip" : manip_name+"+base",
+            "manip" : "leftarm+rightarm+base",
             "start_fixed" : True,
-            "dofs_fixed": [[-1,n_steps-fixed_base_n_steps,n_steps],[-2,n_steps-fixed_base_n_steps,n_steps],[-3,n_steps-fixed_base_n_steps,n_steps]]
         },
         "costs" : [
         {
             "type" : "joint_vel",
-            "params": {"coeffs" : np.r_[np.ones(n_dof-3), 10*np.ones(3)].tolist()}
+            "params": {"coeffs" : np.r_[np.ones(n_dof-4), 10*np.ones(3)].tolist()}
         },            
         {
             "type" : "collision",
             "params" : {"coeffs" : [10],"dist_pen" : [0.01]}
         },
-#        {
-#            "type" : "pose",
-#            "name" : "final_pose",
-#            "params" : {
-#                "pos_coeffs" : [200,200,200],
-#                "rot_coeffs" : [100,100,100],
-#                "xyz" : list(xyz_targ),
-#                "wxyz" : list(quat_targ),
-#                "link" : link_name,
-#            },
-#        }
         ],
         "constraints" : [
         {
@@ -85,6 +73,18 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
                 "link" : link_name,
             },
         },
+        {
+            "type" : "rel_pose",
+            "name" : "gripper_relative_pose",
+            "params" : {
+                "pos_coeffs" : [1,1,1],
+                "rot_coeffs" : [1,1,1],
+                "xyz" : list(xyz_rel),
+                "wxyz" : list(quat_rel),
+                "link1" : link1_name,
+                "link2" : link2_name,
+            },
+        },
         ],
         "init_info" : {
             "type" : "stationary"
@@ -96,14 +96,9 @@ def drive_to_reach_request(robot, link_name, xyz_targ, quat_targ):
 if rospy.get_name() == "/unnamed": rospy.init_node('reach_grab')
 
 ##################
-sim = False
 #cloud_topic = "/cloud_pcd"
 cloud_topic = "/drop/points_self_filtered"
 ##################
-
-if sim:
-    frame_publisher_thread = Thread(target = publish_sim_kinect_frame)
-    frame_publisher_thread.start()
 
 pr2 = PR2.create()
 env = pr2.env
@@ -111,23 +106,21 @@ robot = pr2.robot
 
 xyz_targ, wxyz_targ = select_waypoint(target_name)
 
-#cloud = get_cloud(cloud_topic, pr2)
-print "waiting for point cloud on " + cloud_topic
-import sensor_msgs.msg as sm
-pc = rospy.wait_for_message(cloud_topic, sm.PointCloud2)
-print "ok"
-xyz = ru.pc2xyz(pc)
-xyz = ru.transform_points(xyz, pr2.tf_listener, "base_footprint", pc.header.frame_id)
-xyz = xyz.reshape(-1,3).astype('float32')
-cloud = cloudprocpy.PointCloudXYZ()
-cloud.from2dArray(xyz)
+# constraint the gripper's relative transform based on their initial transform
+T_link1 = robot.GetLink(link1_name).GetTransform().astype("float32")
+T_link2 = robot.GetLink(link2_name).GetTransform().astype("float32")
+T_relative = np.linalg.inv(T_link1).dot(T_link2) # link2's transform in link1's frame
+pose_rel = rave.poseFromMatrix(T_relative)
+xyz_rel = pose_rel[4:7]
+wxyz_rel = pose_rel[0:4]
 
+cloud = get_cloud(cloud_topic, pr2)
 convex_soup.create_convex_soup(cloud, env)
 
 
 ##################
 
-request = drive_to_reach_request(robot, link_name, xyz_targ, wxyz_targ)
+request = move_tray_request(robot, link_name, xyz_targ, wxyz_targ, xyz_rel, wxyz_rel)
 s = json.dumps(request)
 print "REQUEST:",s
 
@@ -138,14 +131,7 @@ result = trajoptpy.OptimizeProblem(prob)
 from jds_utils.yes_or_no import yes_or_no
 yn = yes_or_no("execute traj?")
 if yn:
-    pr2.rgrip.open()
     traj = result.GetTraj()
     inds = prob.GetDOFIndices()
     trajectories.follow_rave_trajectory(pr2, traj, inds, use_base=True)
-    pr2.rgrip.close()
 print "DONE"
-
-if sim:
-    frame_publisher_thread.join()
-
-

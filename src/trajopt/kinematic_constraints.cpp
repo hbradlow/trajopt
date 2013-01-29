@@ -148,6 +148,28 @@ struct CartPoseErrCalculator : public VectorOfVector {
   }
 };
 
+struct CartRelPoseErrCalculator : public VectorOfVector {
+  OR::Transform rel_pose_inv_;
+  RobotAndDOFPtr manip_;
+  OR::KinBody::LinkPtr link1_;
+  OR::KinBody::LinkPtr link2_;
+  // rel_pose is link2 frame with respect to link1 frame; i.e. rel_pose = link1_->GetTransform().inverse()*link2_->GetTransform()
+  CartRelPoseErrCalculator(const OR::Transform& rel_pose, RobotAndDOFPtr manip, OR::KinBody::LinkPtr link1, OR::KinBody::LinkPtr link2) :
+  	rel_pose_inv_(rel_pose.inverse()),
+  manip_(manip),
+  link1_(link1),
+  link2_(link2)
+  {}
+  VectorXd operator()(const VectorXd& dof_vals) const {
+    manip_->SetDOFValues(toDblVec(dof_vals));
+    OR::Transform new_rel_pose = link1_->GetTransform().inverse()*link2_->GetTransform();
+
+    OR::Transform pose_err = rel_pose_inv_ * new_rel_pose;
+    VectorXd err = concat(rotVec(pose_err.rot), toVector3d(pose_err.trans));
+    return err;
+  }
+};
+
 CartPoseCost::CartPoseCost(const VarVector& vars, const OR::Transform& pose, const Vector3d& rot_coeffs,
     const Vector3d& pos_coeffs, RobotAndDOFPtr manip, KinBody::LinkPtr link) :
     CostFromNumDiffErr(VectorOfVectorPtr(new CartPoseErrCalculator(pose, manip, link)),
@@ -181,6 +203,27 @@ void CartPoseConstraint::Plot(const DblVec& x, OR::EnvironmentBase& env, std::ve
   PlotAxes(env, target, .1,  handles);
   handles.push_back(env.drawarrow(cur.trans, target.trans, .01, OR::Vector(1,0,1,1)));
 }
+
+CartRelPoseConstraint::CartRelPoseConstraint(const VarVector& vars, const OR::Transform& rel_pose,
+    RobotAndDOFPtr manip, KinBody::LinkPtr link1, KinBody::LinkPtr link2, const BoolVec& enabled) :
+    ConstraintFromNumDiff(VectorOfVectorPtr(new CartRelPoseErrCalculator(rel_pose, manip, link1, link2)),
+        vars, EQ, "CartRelPose", enabled)
+{
+}
+
+void CartRelPoseConstraint::Plot(const DblVec& x, OR::EnvironmentBase& env, std::vector<OR::GraphHandlePtr>& handles) {
+  CartRelPoseErrCalculator* calc = static_cast<CartRelPoseErrCalculator*>(f_.get());
+  DblVec dof_vals = getDblVec(x, vars_);
+  calc->manip_->SetDOFValues(dof_vals);
+  OR::Transform cur1 = calc->link1_->GetTransform();
+  OR::Transform cur2 = calc->link2_->GetTransform();
+  OR::Transform target2 = cur1 * calc->rel_pose_inv_.inverse();
+  PlotAxes(env, cur1, .1,  handles);
+  PlotAxes(env, cur2, .1,  handles);
+  PlotAxes(env, target2, .1,  handles);
+  handles.push_back(env.drawarrow(cur2.trans, target2.trans, .01, OR::Vector(1,0,1,1)));
+}
+
 
 //////////////////////////////// alex ////////////////////////////////
 
@@ -262,7 +305,7 @@ struct CartVelCalculator : VectorOfVector {
     OR::Transform pose1 = link_->GetTransform();
     VectorXd out(6);
     out.topRows(3) = toVector3d(pose1.trans - pose0.trans - OR::Vector(limit_,limit_,limit_));
-    out.bottomRows(3) = toVector3d(OR::Vector(limit_,limit_,limit_) - pose1.trans + pose0.trans);
+    out.bottomRows(3) = toVector3d(-OR::Vector(limit_,limit_,limit_) - pose1.trans + pose0.trans);
     return out;
   }
 };

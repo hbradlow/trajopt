@@ -27,6 +27,11 @@ public:
   CartPoseConstraint(const VarVector& vars, const OR::Transform& pose, RobotAndDOFPtr manip, KinBody::LinkPtr link, const BoolVec& enabled=BoolVec());
   void Plot(const DblVec& x, OR::EnvironmentBase& env, std::vector<OR::GraphHandlePtr>& handles);
 };
+class CartRelPoseConstraint : public ConstraintFromNumDiff, public Plotter {
+public:
+	CartRelPoseConstraint(const VarVector& vars, const OR::Transform& pose, RobotAndDOFPtr manip, KinBody::LinkPtr link1, KinBody::LinkPtr link2, const BoolVec& enabled=BoolVec());
+  void Plot(const DblVec& x, OR::EnvironmentBase& env, std::vector<OR::GraphHandlePtr>& handles);
+};
 
 class CartPosConstraint : public ConstraintFromNumDiff, public Plotter {
 public:
